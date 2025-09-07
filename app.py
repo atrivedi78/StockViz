@@ -32,7 +32,7 @@ st.sidebar.header("Upload Portfolio Data")
 uploaded_file = st.sidebar.file_uploader(
     "Choose a CSV or Excel file",
     type=['csv', 'xlsx', 'xls'],
-    help="Upload a file containing your portfolio holdings with columns: Symbol, Shares, or Symbol, Weight"
+    help="Upload a file with your portfolio holdings. Supports columns like: Slice/Symbol, Owned quantity/Shares, or Weight"
 )
 
 if uploaded_file is not None:

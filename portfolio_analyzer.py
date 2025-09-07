@@ -17,24 +17,35 @@ class PortfolioAnalyzer:
         
     def validate_portfolio_data(self):
         """Validate and standardize portfolio data format"""
+        # Remove summary rows first (like "Total" rows)
+        if 'Slice' in self.portfolio_df.columns:
+            # Filter out summary rows where Slice contains "Total" or similar
+            self.portfolio_df = self.portfolio_df[
+                ~self.portfolio_df['Slice'].astype(str).str.contains('Total|TOTAL|total|Summary|SUMMARY|summary', na=False)
+            ]
+        
         # Ensure we have required columns
         if 'Symbol' not in self.portfolio_df.columns:
-            # Try common variations
-            symbol_columns = ['symbol', 'ticker', 'Ticker', 'SYMBOL', 'Stock', 'stock']
+            # Try common variations including user's format
+            symbol_columns = ['symbol', 'ticker', 'Ticker', 'SYMBOL', 'Stock', 'stock', 'Slice']
             for col in symbol_columns:
                 if col in self.portfolio_df.columns:
                     self.portfolio_df['Symbol'] = self.portfolio_df[col]
                     break
             else:
-                raise ValueError("No symbol column found. Please include a 'Symbol' column with stock tickers.")
+                raise ValueError("No symbol column found. Please include a 'Symbol' or 'Slice' column with stock tickers.")
         
         # Clean up symbol column
         self.portfolio_df['Symbol'] = self.portfolio_df['Symbol'].astype(str).str.strip().str.upper()
         
+        # Handle company names if available
+        if 'Name' in self.portfolio_df.columns and 'Company Name' not in self.portfolio_df.columns:
+            self.portfolio_df['Company Name'] = self.portfolio_df['Name']
+        
         # Handle shares and weights
         if 'Shares' not in self.portfolio_df.columns and 'Weight' not in self.portfolio_df.columns:
-            # Try common variations
-            shares_columns = ['shares', 'quantity', 'Quantity', 'SHARES', 'Amount', 'amount']
+            # Try common variations including user's format
+            shares_columns = ['shares', 'quantity', 'Quantity', 'SHARES', 'Amount', 'amount', 'Owned quantity']
             weight_columns = ['weight', 'Weight', 'WEIGHT', 'Allocation', 'allocation', '%']
             
             for col in shares_columns:
@@ -46,13 +57,17 @@ class PortfolioAnalyzer:
                     if col in self.portfolio_df.columns:
                         weights = pd.to_numeric(self.portfolio_df[col], errors='coerce')
                         # Normalize weights if they appear to be percentages
-                        if weights.max() > 1:
+                        if weights.notna().any() and weights.max() > 1:
                             weights = weights / 100
                         self.portfolio_df['Weight'] = weights
                         break
                 else:
                     # If no shares or weights, assume equal weights
                     self.portfolio_df['Weight'] = 1.0 / len(self.portfolio_df)
+        
+        # Handle current value if available
+        if 'Value' in self.portfolio_df.columns and 'Current Value' not in self.portfolio_df.columns:
+            self.portfolio_df['Current Value'] = pd.to_numeric(self.portfolio_df['Value'], errors='coerce')
         
         # Remove rows with invalid symbols
         self.portfolio_df = self.portfolio_df.dropna(subset=['Symbol'])
