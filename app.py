@@ -54,7 +54,7 @@ if uploaded_file is not None:
         
     except Exception as e:
         st.sidebar.error(f"❌ Error reading file: {str(e)}")
-        st.sidebar.info("Please ensure your file has columns like 'Symbol', 'Shares' or 'Symbol', 'Weight'")
+        st.sidebar.info("Please ensure your file has columns like 'Slice'/'Symbol', 'Owned quantity'/'Shares' or 'Weight'")
 
 # Main content area
 if st.session_state.portfolio_data is not None and st.session_state.analyzer is not None:
@@ -305,7 +305,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 
         except Exception as e:
             st.error(f"Error processing portfolio data: {str(e)}")
-            st.info("Please ensure your portfolio file has the correct format with columns like 'Symbol', 'Shares' or 'Symbol', 'Weight'")
+            st.info("Please ensure your portfolio file has the correct format with columns like 'Slice'/'Symbol', 'Owned quantity'/'Shares' or 'Weight'")
 
 else:
     # Welcome message when no file is uploaded
@@ -318,23 +318,25 @@ else:
     
     ### 📊 Required Columns
     Your portfolio file should include:
-    - **Symbol**: Stock ticker symbols (e.g., AAPL, GOOGL, MSFT)
-    - **Shares**: Number of shares owned, OR
+    - **Slice** or **Symbol**: Stock ticker symbols (e.g., AAPL, GOOGL, MSFT)
+    - **Owned quantity** or **Shares**: Number of shares owned, OR
     - **Weight**: Portfolio weight percentage (0-1 or 0-100)
+    - **Name**: Company names (optional)
+    - **Value**: Current portfolio value (optional)
     
     ### ✨ Features
     - 📈 Real-time price fetching
     - 🔥 Interactive heat map visualization
     - 📊 MACD technical analysis
     - 📋 Detailed portfolio metrics
-    - 💾 Export capabilities
+    - 🚫 Automatic filtering of summary rows
     
     ### 📝 Example File Format
     ```
-    Symbol,Shares
-    AAPL,100
-    GOOGL,50
-    MSFT,75
+    Slice,Name,Owned quantity
+    AAPL,Apple Inc,100
+    GOOGL,Alphabet Inc,50
+    MSFT,Microsoft,75
     ```
     
     or
