@@ -68,6 +68,11 @@ class PortfolioAnalyzer:
         # Handle current value if available
         if 'Value' in self.portfolio_df.columns and 'Current Value' not in self.portfolio_df.columns:
             self.portfolio_df['Current Value'] = pd.to_numeric(self.portfolio_df['Value'], errors='coerce')
+
+        # add extra columns from csv
+        self.portfolio_df['Cost (£)'] = pd.to_numeric(self.portfolio_df['Invested value'], errors='coerce')
+        self.portfolio_df['Value (£)'] = pd.to_numeric(self.portfolio_df['Value'], errors='coerce')
+        self.portfolio_df['P&L (£)'] = pd.to_numeric(self.portfolio_df['Result'], errors='coerce')
         
         # Remove rows with invalid symbols
         self.portfolio_df = self.portfolio_df.dropna(subset=['Symbol'])
@@ -99,7 +104,8 @@ class PortfolioAnalyzer:
                         'Market Cap': info.get('marketCap', 0),
                         'Company Name': info.get('longName', symbol),
                         'Sector': info.get('sector', 'Unknown'),
-                        'Industry': info.get('industry', 'Unknown')
+                        'Industry': info.get('industry', 'Unknown'),
+                        'Currency': info.get('currency', 'Unknown')
                     }
                 else:
                     # Fallback for symbols without recent data
@@ -109,7 +115,8 @@ class PortfolioAnalyzer:
                         'Market Cap': 0,
                         'Company Name': symbol,
                         'Sector': 'Unknown',
-                        'Industry': 'Unknown'
+                        'Industry': 'Unknown',
+                        'Currency': 'Unknown'
                     }
                     
             except Exception as e:
@@ -120,7 +127,8 @@ class PortfolioAnalyzer:
                     'Market Cap': 0,
                     'Company Name': symbol,
                     'Sector': 'Unknown',
-                    'Industry': 'Unknown'
+                    'Industry': 'Unknown',
+                    'Currency': 'Unknown'
                 }
                 
         return stock_data
@@ -151,14 +159,21 @@ class PortfolioAnalyzer:
                     'Company Name': stock_info.get('Company Name', symbol),
                     'Sector': stock_info.get('Sector', 'Unknown'),
                     'Current Price': stock_info.get('Current Price', 0),
+                    'Currency': stock_info.get('Currency', 0),
                     'Previous Close': stock_info.get('Previous Close', 0)
                 }
                 
                 # Add shares if available
                 if 'Shares' in row and pd.notna(row['Shares']):
                     shares = float(row['Shares'])
+                    cost_gbp = float(row['Cost (£)'])
+                    mv_gbp = float(row['Value (£)'])
                     summary_row['Shares'] = shares
                     summary_row['Market Value'] = shares * stock_info.get('Current Price', 0)
+                    summary_row['Cost (£)'] = cost_gbp
+                    summary_row['Value (£)'] = mv_gbp
+                    summary_row['P&L (£)'] = float(row['P&L (£)'])
+                    summary_row['P&L %'] = ((mv_gbp-cost_gbp) / cost_gbp) * 100
                 else:
                     summary_row['Shares'] = 0
                     summary_row['Market Value'] = 0

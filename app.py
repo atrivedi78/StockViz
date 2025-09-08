@@ -95,13 +95,43 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 # Display detailed holdings table
                 st.subheader("Holdings Details")
                 row_height = 35  # adjust based on font/spacing
+
+                # Let the user pick which columns to display
+                columns_to_show = st.multiselect(
+                    "Select columns to display:",
+                    options=portfolio_summary.columns.tolist(),  # all available columns
+                    default=["Symbol", "Company Name", "Current Price", "Currency", "Daily Change (%)", "Weight (%)"]  # pre-selected defaults
+                )
                 
                 st.dataframe(
-                    portfolio_summary,
+                    portfolio_summary[columns_to_show],
                     height=(len(df) + 1) * row_height,
                     use_container_width=True,
                     hide_index=True
                 )
+
+                # Top & Bottom 5
+                st.header("🏆 / 💔 - Top 5 Winners vs Losers")
+                col1, col2 = st.columns(2)
+                top5_cols_to_show=["Symbol", "Company Name", "P&L %"]
+                
+                with col1:
+                    top5_df = portfolio_summary.nlargest(5, "P&L %")  # top 5 rows by P&L %
+                    st.dataframe(
+                        top5_df[top5_cols_to_show],
+                        height=6 * row_height,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                with col2:
+                    bottom5_df = portfolio_summary.nsmallest(5, "P&L %")  # top 5 rows by P&L %
+                    st.dataframe(
+                        bottom5_df[top5_cols_to_show],
+                        height=6 * row_height,
+                        use_container_width=True,
+                        hide_index=True
+                    )
                 
                 # Heat Map Section
                 st.header("🔥 Portfolio Weight Heat Map")
@@ -112,9 +142,9 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         portfolio_summary,
                         path=['Symbol'],
                         values='Weight',
-                        title="Portfolio Holdings by Weight",
-                        color='Weight',
-                        color_continuous_scale='RdYlBu_r',
+                        # title="Portfolio Holdings by Weight",
+                        color='P&L %',
+                        color_continuous_scale=['red', 'green'],  # red = negative, green = positive
                         labels={'Weight': 'Portfolio Weight'}
                     )
                     
@@ -123,7 +153,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         font_size=12
                     )
                     
-                    st.plotly_chart(fig_treemap, use_container_width=True)
+                    st.plotly_chart(fig_treemap, use_container_width=True, key="portfolio_treemap")
                     
                     # Bar chart for weights
                     fig_bar = px.bar(
@@ -134,7 +164,18 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         labels={'Weight (%)': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
                     )
                     fig_bar.update_xaxes(tickangle=45)
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, use_container_width=True, key="portfolio_weights_bar")
+                    
+                    # Bar chart for pnl vs cost
+                    fig_pnl = px.bar(
+                        portfolio_summary.sort_values('Weight (%)', ascending=False),
+                        x='Symbol',
+                        y='Weight (%)',
+                        title="Holdings by Weight",
+                        labels={'Weight (%)': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
+                    )
+                    fig_pnl.update_xaxes(tickangle=45)
+                    st.plotly_chart(fig_pnl, use_container_width=True, key="portfolio_pnl_bar")
                 
                 else:
                     st.warning("Weight information not available. Please ensure your portfolio file includes weight or shares data.")
@@ -250,7 +291,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                         fig.update_yaxes(title_text="MACD", row=2, col=1)
                                         fig.update_yaxes(title_text="Histogram", row=3, col=1)
                                         
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, use_container_width=True, key="macd_analysis")
                                         
                                         # MACD insights
                                         st.subheader("MACD Insights")
