@@ -208,38 +208,25 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 if symbols:
                     selected_symbol = st.selectbox(
                         "Select a symbol for MACD analysis:",
-                        symbols,
+                        sorted(symbols),  # ✅ ensures alphabetical order
                         help="Choose a stock symbol from your portfolio to analyze MACD trends"
                     )
-                    
-                    # Time period selection
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        period = st.selectbox(
-                            "Analysis Period:",
-                            ["1y", "2y", "5y", "max"],
-                            index=2,
-                            help="Select the time period for MACD analysis"
-                        )
-                    
-                    with col2:
-                        interval = st.selectbox(
-                            "Data Interval:",
-                            ["1mo", "1wk", "1d"],
-                            index=0,
-                            help="Monthly data recommended for trend analysis"
-                        )
                     
                     if st.button("Generate MACD Analysis", type="primary"):
                         with st.spinner(f"Analyzing MACD for {selected_symbol}..."):
                             try:
                                 # Fetch historical data
+                                period = "5y"
                                 ticker = yf.Ticker(selected_symbol)
-                                hist_data = ticker.history(period=period, interval=interval)
+                                hist_data = ticker.history(period=period, interval="1d")
+                                hist_data_wk = ticker.history(period=period, interval="1wk")
+                                hist_data_mo = ticker.history(period=period, interval="1mo")
                                 
                                 if not hist_data.empty:
                                     # Calculate MACD
                                     macd_data = calculate_macd(hist_data['Close'])
+                                    macd_data_wk = calculate_macd(hist_data_wk['Close'])
+                                    macd_data_mo = calculate_macd(hist_data_mo['Close'])
                                     
                                     if macd_data is not None:
                                         # Create MACD visualization
@@ -249,7 +236,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                             vertical_spacing=0.05,
                                             subplot_titles=(
                                                 f'{selected_symbol} Price',
-                                                'MACD (1mo)'
+                                                'MACD'
                                             ),
                                             row_heights=[0.5, 0.5, 0.5]
                                         )
@@ -260,43 +247,77 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                                 x=hist_data.index,
                                                 y=hist_data['Close'],
                                                 name='Price',
-                                                line=dict(color='blue')
+                                                line=dict(color='white')
                                             ),
                                             row=1, col=1
                                         )
                                         
-                                        # MACD line
+                                        # MACD line - monthly
                                         fig.add_trace(
                                             go.Scatter(
-                                                x=macd_data.index,
-                                                y=macd_data['MACD'],
+                                                x=macd_data_mo.index,
+                                                y=macd_data_mo['MACD'],
                                                 name='MACD',
+                                                line=dict(color='blue')
+                                            ),
+                                            row=2, col=1
+                                        )
+                                        
+                                        # Signal line - monthly
+                                        fig.add_trace(
+                                            go.Scatter(
+                                                x=macd_data_mo.index,
+                                                y=macd_data_mo['Signal'],
+                                                name='Signal',
                                                 line=dict(color='red')
                                             ),
                                             row=2, col=1
                                         )
                                         
-                                        # Signal line
-                                        fig.add_trace(
-                                            go.Scatter(
-                                                x=macd_data.index,
-                                                y=macd_data['Signal'],
-                                                name='Signal',
-                                                line=dict(color='orange')
-                                            ),
-                                            row=2, col=1
-                                        )
-                                        
-                                        # MACD histogram
-                                        colors = ['green' if val >= 0 else 'red' for val in macd_data['Histogram']]
+                                        # MACD histogram - monthly
+                                        colors = ['green' if val >= 0 else 'red' for val in macd_data_mo['Histogram']]
                                         fig.add_trace(
                                             go.Bar(
-                                                x=macd_data.index,
-                                                y=macd_data['Histogram'],
+                                                x=macd_data_mo.index,
+                                                y=macd_data_mo['Histogram'],
                                                 name='Histogram',
                                                 marker_color=colors
                                             ),
                                             row=2, col=1
+                                        )
+                                        
+                                        # MACD line - weekly
+                                        fig.add_trace(
+                                            go.Scatter(
+                                                x=macd_data_wk.index,
+                                                y=macd_data_wk['MACD'],
+                                                name='MACD',
+                                                line=dict(color='blue')
+                                            ),
+                                            row=3, col=1
+                                        )
+
+                                        # Signal line - weekly
+                                        fig.add_trace(
+                                            go.Scatter(
+                                                x=macd_data_wk.index,
+                                                y=macd_data_wk['Signal'],
+                                                name='Signal',
+                                                line=dict(color='red')
+                                            ),
+                                            row=3, col=1
+                                        )
+
+                                        # MACD histogram - weekly
+                                        colors = ['green' if val >= 0 else 'red' for val in macd_data_wk['Histogram']]
+                                        fig.add_trace(
+                                            go.Bar(
+                                                x=macd_data_wk.index,
+                                                y=macd_data_wk['Histogram'],
+                                                name='Histogram',
+                                                marker_color=colors
+                                            ),
+                                            row=3, col=1
                                         )
                                         
                                         fig.update_layout(
@@ -304,18 +325,17 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                             height=800,
                                             showlegend=False
                                         )
-                                        
-                                        fig.update_xaxes(title_text="Date", row=3, col=1)
-                                        fig.update_yaxes(title_text="Price ($)", row=1, col=1)
-                                        fig.update_yaxes(title_text="MACD", row=2, col=1)
-                                        fig.update_yaxes(title_text="Histogram", row=3, col=1)
+
+                                        fig.update_yaxes(title_text="Price", row=1, col=1)
+                                        fig.update_yaxes(title_text="Monthly", row=2, col=1)
+                                        fig.update_yaxes(title_text="Weekly", row=3, col=1)
                                         
                                         st.plotly_chart(fig, use_container_width=True)
                                         
                                         # MACD insights
                                         st.subheader("MACD Insights")
                                         
-                                        latest_macd = macd_data.iloc[-1]
+                                        latest_macd = macd_data_mo.iloc[-1]
                                         
                                         # Signal interpretation
                                         if latest_macd['MACD'] > latest_macd['Signal']:
