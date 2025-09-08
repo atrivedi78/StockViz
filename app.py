@@ -14,8 +14,7 @@ from technical_indicators import calculate_macd
 st.set_page_config(
     page_title="Portfolio Analysis Dashboard",
     page_icon="📈",
-    layout="wide"
-)
+    layout="wide")
 
 st.title("📈 Portfolio Analysis Dashboard")
 st.markdown("Upload your portfolio holdings to analyze weights, current prices, and technical indicators.")
@@ -95,8 +94,11 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 
                 # Display detailed holdings table
                 st.subheader("Holdings Details")
+                row_height = 35  # adjust based on font/spacing
+                
                 st.dataframe(
                     portfolio_summary,
+                    height=(len(df) + 1) * row_height,
                     use_container_width=True,
                     hide_index=True
                 )
@@ -123,29 +125,16 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                     
                     st.plotly_chart(fig_treemap, use_container_width=True)
                     
-                    # Alternative pie chart view
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        fig_pie = px.pie(
-                            portfolio_summary,
-                            values='Weight',
-                            names='Symbol',
-                            title="Portfolio Allocation (Pie Chart)"
-                        )
-                        st.plotly_chart(fig_pie, use_container_width=True)
-                    
-                    with col2:
-                        # Bar chart for weights
-                        fig_bar = px.bar(
-                            portfolio_summary.sort_values('Weight', ascending=False),
-                            x='Symbol',
-                            y='Weight',
-                            title="Holdings by Weight (Bar Chart)",
-                            labels={'Weight': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
-                        )
-                        fig_bar.update_xaxes(tickangle=45)
-                        st.plotly_chart(fig_bar, use_container_width=True)
+                    # Bar chart for weights
+                    fig_bar = px.bar(
+                        portfolio_summary.sort_values('Weight (%)', ascending=False),
+                        x='Symbol',
+                        y='Weight (%)',
+                        title="Holdings by Weight",
+                        labels={'Weight (%)': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
+                    )
+                    fig_bar.update_xaxes(tickangle=45)
+                    st.plotly_chart(fig_bar, use_container_width=True)
                 
                 else:
                     st.warning("Weight information not available. Please ensure your portfolio file includes weight or shares data.")
@@ -169,7 +158,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         period = st.selectbox(
                             "Analysis Period:",
                             ["1y", "2y", "5y", "max"],
-                            index=1,
+                            index=2,
                             help="Select the time period for MACD analysis"
                         )
                     
@@ -200,10 +189,9 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                             vertical_spacing=0.05,
                                             subplot_titles=(
                                                 f'{selected_symbol} Price',
-                                                'MACD Line & Signal Line',
-                                                'MACD Histogram'
+                                                'MACD (1mo)'
                                             ),
-                                            row_heights=[0.5, 0.3, 0.2]
+                                            row_heights=[0.5, 0.5, 0.5]
                                         )
                                         
                                         # Price chart
@@ -248,13 +236,13 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                                 name='Histogram',
                                                 marker_color=colors
                                             ),
-                                            row=3, col=1
+                                            row=2, col=1
                                         )
                                         
                                         fig.update_layout(
                                             title=f'MACD Analysis for {selected_symbol}',
                                             height=800,
-                                            showlegend=True
+                                            showlegend=False
                                         )
                                         
                                         fig.update_xaxes(title_text="Date", row=3, col=1)
@@ -268,26 +256,12 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                         st.subheader("MACD Insights")
                                         
                                         latest_macd = macd_data.iloc[-1]
-                                        col1, col2, col3 = st.columns(3)
-                                        
-                                        with col1:
-                                            st.metric("Current MACD", f"{latest_macd['MACD']:.4f}")
-                                        
-                                        with col2:
-                                            st.metric("Signal Line", f"{latest_macd['Signal']:.4f}")
-                                        
-                                        with col3:
-                                            st.metric("Histogram", f"{latest_macd['Histogram']:.4f}")
                                         
                                         # Signal interpretation
                                         if latest_macd['MACD'] > latest_macd['Signal']:
                                             st.success("🟢 **Bullish Signal**: MACD is above the signal line, indicating potential upward momentum.")
                                         else:
                                             st.error("🔴 **Bearish Signal**: MACD is below the signal line, indicating potential downward momentum.")
-                                        
-                                        # Display MACD data table
-                                        st.subheader("MACD Data")
-                                        st.dataframe(macd_data.tail(10), use_container_width=True)
                                         
                                     else:
                                         st.error("Failed to calculate MACD. Insufficient data points.")
