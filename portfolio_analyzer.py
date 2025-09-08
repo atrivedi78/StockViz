@@ -218,7 +218,11 @@ class PortfolioAnalyzer:
                 summary_df['Weight (%)'] = (summary_df['Weight'] * 100).round(2)
             if 'Daily Change (%)' in summary_df.columns:
                 summary_df['Daily Change (%)'] = summary_df['Daily Change (%)'].round(2)
-            
+            if 'P&L %' in summary_df.columns:
+                summary_df['P&L %'] = summary_df['P&L %'].round(2)
+            if 'P&L (£)' in summary_df.columns:
+                summary_df['P&L (£)'] = summary_df['P&L (£)'].round(2)
+                
             return summary_df
             
         except Exception as e:

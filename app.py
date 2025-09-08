@@ -71,20 +71,19 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 col1, col2, col3, col4 = st.columns(4)
                 
                 with col1:
-                    total_value = portfolio_summary['Market Value'].sum() if 'Market Value' in portfolio_summary.columns else 0
-                    st.metric("Total Portfolio Value", f"${total_value:,.2f}")
-                
+                    total_value = portfolio_summary['Value (£)'].sum() if 'Value (£)' in portfolio_summary.columns else 0
+                    st.metric("Total Portfolio Value", f"£{total_value:,.2f}")
+
                 with col2:
-                    num_holdings = len(portfolio_summary)
-                    st.metric("Number of Holdings", num_holdings)
+                    total_value = portfolio_summary['Value (£)'].sum() if 'Value (£)' in portfolio_summary.columns else 0
+                    total_cost = portfolio_summary['Cost (£)'].sum() if 'Cost (£)' in portfolio_summary.columns else 0
+                    pnl = ((total_value-total_cost)/total_cost) * 100
+                    st.metric("P&L %", f"{pnl:.2f}%")
                 
                 with col3:
-                    if 'Current Price' in portfolio_summary.columns:
-                        avg_price = portfolio_summary['Current Price'].mean()
-                        st.metric("Average Price", f"${avg_price:.2f}")
-                    else:
-                        st.metric("Average Price", "N/A")
-                
+                    num_holdings = len(portfolio_summary)
+                    st.metric("Number of Holdings", num_holdings)
+            
                 with col4:
                     if 'Weight' in portfolio_summary.columns:
                         max_weight = portfolio_summary['Weight'].max() * 100
@@ -153,7 +152,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         font_size=12
                     )
                     
-                    st.plotly_chart(fig_treemap, use_container_width=True, key="portfolio_treemap")
+                    st.plotly_chart(fig_treemap, use_container_width=True)
                     
                     # Bar chart for weights
                     fig_bar = px.bar(
@@ -164,18 +163,38 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                         labels={'Weight (%)': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
                     )
                     fig_bar.update_xaxes(tickangle=45)
-                    st.plotly_chart(fig_bar, use_container_width=True, key="portfolio_weights_bar")
+                    st.plotly_chart(fig_bar, use_container_width=True)
                     
                     # Bar chart for pnl vs cost
-                    fig_pnl = px.bar(
-                        portfolio_summary.sort_values('Weight (%)', ascending=False),
-                        x='Symbol',
-                        y='Weight (%)',
-                        title="Holdings by Weight",
-                        labels={'Weight (%)': 'Portfolio Weight', 'Symbol': 'Stock Symbol'}
+                    df_melted = portfolio_summary.melt(
+                        id_vars=['Symbol'], 
+                        value_vars=['Cost (£)', 'P&L (£)'], 
+                        var_name='Type', 
+                        value_name='Amount'
                     )
+
+                    # Create stacked bar chart
+                    fig_pnl = px.bar(
+                        df_melted.sort_values('Amount', ascending=False),
+                        x='Symbol',
+                        y='Amount',
+                        color='Type',           # distinguishes Cost vs P&L
+                        title="Invest vs P&L",
+                        labels={'Amount': 'Amount (£)', 'Symbol': 'Stock Symbol', 'Type': ''}
+                    )
+
+                    fig_pnl.update_layout(
+                        legend=dict(
+                            orientation="h",          # horizontal
+                            yanchor="bottom",
+                            y=1.02,                   # just above the plot
+                            xanchor="center",
+                            x=0.5
+                        )
+                    )
+                    
                     fig_pnl.update_xaxes(tickangle=45)
-                    st.plotly_chart(fig_pnl, use_container_width=True, key="portfolio_pnl_bar")
+                    st.plotly_chart(fig_pnl, use_container_width=True)
                 
                 else:
                     st.warning("Weight information not available. Please ensure your portfolio file includes weight or shares data.")
@@ -291,7 +310,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                                         fig.update_yaxes(title_text="MACD", row=2, col=1)
                                         fig.update_yaxes(title_text="Histogram", row=3, col=1)
                                         
-                                        st.plotly_chart(fig, use_container_width=True, key="macd_analysis")
+                                        st.plotly_chart(fig, use_container_width=True)
                                         
                                         # MACD insights
                                         st.subheader("MACD Insights")
