@@ -3,6 +3,7 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime
 import streamlit as st
+from technical_indicators import analyze_tickers
 
 class PortfolioAnalyzer:
     def __init__(self, portfolio_df):
