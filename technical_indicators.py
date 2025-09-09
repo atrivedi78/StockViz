@@ -151,14 +151,29 @@ def compute_macd(prices, fast=12, slow=26, signal=9):
 
 def interpret_macd(price_df):
     """Interpret weekly and monthly MACD with ranking and confidence scoring."""
-    weekly = price_df['Close'].resample('W').last()
-    monthly = price_df['Close'].resample('M').last()
+    try:
+        if price_df is None or price_df.empty or len(price_df) < 50:
+            return None
+            
+        weekly = price_df['Close'].resample('W').last()
+        monthly = price_df['Close'].resample('ME').last()
+        
+        # Make sure we have enough data points
+        if len(weekly) < 10 or len(monthly) < 5:
+            return None
 
-    macd_w, sig_w, hist_w = compute_macd(weekly)
-    macd_m, sig_m, hist_m = compute_macd(monthly)
+        macd_w, sig_w, hist_w = compute_macd(weekly)
+        macd_m, sig_m, hist_m = compute_macd(monthly)
+        
+        # Check if MACD calculation was successful
+        if macd_w.empty or sig_w.empty or hist_w.empty or macd_m.empty or sig_m.empty or hist_m.empty:
+            return None
 
-    weekly_view = analyze_macd(macd_w, sig_w, hist_w, weekly, "Weekly")
-    monthly_view = analyze_macd(macd_m, sig_m, hist_m, monthly, "Monthly")
+        weekly_view = analyze_macd(macd_w, sig_w, hist_w, weekly, "Weekly")
+        monthly_view = analyze_macd(macd_m, sig_m, hist_m, monthly, "Monthly")
+    except Exception as e:
+        print(f"Error in interpret_macd: {e}")
+        return None
 
     overall_score = (weekly_view["Score"] + monthly_view["Score"]) / 2
 
@@ -191,11 +206,17 @@ def analyze_tickers(tickers, start="2020-01-01"):
     for ticker in tickers:
         try:
             df = yf.download(ticker, start=start, progress=False)
-            if df.empty:
+            if df is None or df.empty:
                 continue
+            
+            # Check if we have enough data
+            if len(df) < 50:  # Need at least 50 days for meaningful analysis
+                continue
+                
             res = interpret_macd(df)
-            res["Ticker"] = ticker
-            results.append(res)
+            if res is not None:
+                res["Ticker"] = ticker
+                results.append(res)
         except Exception as e:
             print(f"Error processing {ticker}: {e}")
             continue
