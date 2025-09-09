@@ -64,65 +64,84 @@ def calculate_macd(prices: pd.Series, fast_period: int = 12, slow_period: int = 
         return None
 
 def analyze_macd(macd, signal, hist, price, label):
-    notes = []
-    score = 0
+    try:
+        # Validate inputs
+        if (macd.empty or signal.empty or hist.empty or price.empty or 
+            len(macd) < 2 or len(signal) < 2 or len(hist) < 2 or len(price) < 20):
+            return {"Outlook": "Neutral", "Score": 0, "Notes": ["Insufficient data"], "Label": label}
+            
+        notes = []
+        score = 0
 
-    macd_last, macd_prev = macd.iloc[-1], macd.iloc[-2]
-    signal_last, signal_prev = signal.iloc[-1], signal.iloc[-2]
-    hist_last, hist_prev = hist.iloc[-1], hist.iloc[-2]
+        # Convert to float values to avoid Series ambiguity
+        macd_last = float(macd.iloc[-1])
+        macd_prev = float(macd.iloc[-2]) 
+        signal_last = float(signal.iloc[-1])
+        signal_prev = float(signal.iloc[-2])
+        hist_last = float(hist.iloc[-1])
+        hist_prev = float(hist.iloc[-2])
 
-    # Basic position
-    if macd_last > signal_last and macd_last > 0:
-        notes.append("MACD above Signal and zero (bullish)")
-        score += 2
-    elif macd_last < signal_last and macd_last < 0:
-        notes.append("MACD below Signal and zero (bearish)")
-        score -= 2
-    else:
-        notes.append("MACD in mixed territory")
+        # Basic position
+        if macd_last > signal_last and macd_last > 0:
+            notes.append("MACD above Signal and zero (bullish)")
+            score += 2
+        elif macd_last < signal_last and macd_last < 0:
+            notes.append("MACD below Signal and zero (bearish)")
+            score -= 2
+        else:
+            notes.append("MACD in mixed territory")
 
-    # Fresh crossovers
-    if macd_prev < signal_prev and macd_last > signal_last:
-        notes.append("Fresh bullish crossover")
-        score += 2
-    elif macd_prev > signal_prev and macd_last < signal_last:
-        notes.append("Fresh bearish crossover")
-        score -= 2
+        # Fresh crossovers
+        if macd_prev < signal_prev and macd_last > signal_last:
+            notes.append("Fresh bullish crossover")
+            score += 2
+        elif macd_prev > signal_prev and macd_last < signal_last:
+            notes.append("Fresh bearish crossover")
+            score -= 2
 
-    # Histogram momentum
-    if hist_last > hist_prev:
-        notes.append("Momentum strengthening")
-        score += 1
-    elif hist_last < hist_prev:
-        notes.append("Momentum weakening")
-        score -= 1
+        # Histogram momentum
+        if hist_last > hist_prev:
+            notes.append("Momentum strengthening")
+            score += 1
+        elif hist_last < hist_prev:
+            notes.append("Momentum weakening")
+            score -= 1
 
-    # Divergence check (simplified)
-    price_high = price.iloc[-20:].max()
-    price_low = price.iloc[-20:].min()
-    macd_high = macd.iloc[-20:].max()
-    macd_low = macd.iloc[-20:].min()
+        # Divergence check (simplified) - convert to float values
+        try:
+            price_current = float(price.iloc[-1])
+            price_high = float(price.iloc[-20:].max())
+            price_low = float(price.iloc[-20:].min())
+            macd_high = float(macd.iloc[-20:].max())
+            macd_low = float(macd.iloc[-20:].min())
 
-    if price.iloc[-1] > price_high and macd_last < macd_high:
-        notes.append("Bearish divergence (price high not confirmed by MACD)")
-        score -= 2
-    if price.iloc[-1] < price_low and macd_last > macd_low:
-        notes.append("Bullish divergence (price low not confirmed by MACD)")
-        score += 2
+            if price_current > price_high and macd_last < macd_high:
+                notes.append("Bearish divergence (price high not confirmed by MACD)")
+                score -= 2
+            if price_current < price_low and macd_last > macd_low:
+                notes.append("Bullish divergence (price low not confirmed by MACD)")
+                score += 2
+        except (ValueError, TypeError):
+            # Skip divergence analysis if conversion fails
+            pass
 
-    # Translate score into ranked outlook
-    if score >= 3:
-        outlook = "Strong Bullish"
-    elif score >= 1:
-        outlook = "Weak Bullish"
-    elif score <= -3:
-        outlook = "Strong Bearish"
-    elif score <= -1:
-        outlook = "Weak Bearish"
-    else:
-        outlook = "Neutral"
+        # Translate score into ranked outlook
+        if score >= 3:
+            outlook = "Strong Bullish"
+        elif score >= 1:
+            outlook = "Weak Bullish"
+        elif score <= -3:
+            outlook = "Strong Bearish"
+        elif score <= -1:
+            outlook = "Weak Bearish"
+        else:
+            outlook = "Neutral"
 
-    return {"Outlook": outlook, "Score": score, "Notes": notes, "Label": label}
+        return {"Outlook": outlook, "Score": score, "Notes": notes, "Label": label}
+    
+    except Exception as e:
+        print(f"Error in analyze_macd: {e}")
+        return {"Outlook": "Neutral", "Score": 0, "Notes": [f"Analysis error: {str(e)}"], "Label": label}
 
 def compute_macd(prices, fast=12, slow=26, signal=9):
     """Compute MACD and return separate series (used by analyze_tickers)"""
