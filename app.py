@@ -99,7 +99,7 @@ if st.session_state.portfolio_data is not None and st.session_state.analyzer is 
                 columns_to_show = st.multiselect(
                     "Select columns to display:",
                     options=portfolio_summary.columns.tolist(),  # all available columns
-                    default=["Symbol", "Company Name", "Current Price", "Currency", "Daily Change (%)", "Weight (%)"]  # pre-selected defaults
+                    default=["Symbol", "Company Name", "Current Price", "Currency", "Daily Change (%)", "Weight (%)", "Outlook", "Confidence"]  # pre-selected defaults
                 )
                 
                 st.dataframe(
