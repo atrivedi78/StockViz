@@ -208,6 +208,36 @@ class PortfolioAnalyzer:
                     # Equal weights if no market value available
                     summary_df['Weight'] = 1.0 / len(summary_df)
             
+            # Add technical analysis data (outlook and confidence)
+            try:
+                if 'Symbol' in summary_df.columns:
+                    symbols_for_analysis = summary_df['Symbol'].tolist()
+                    # Use last 3 years of data for analysis
+                    analysis_results = analyze_tickers(symbols_for_analysis, start="2021-01-01")
+                    
+                    if not analysis_results.empty:
+                        # Merge analysis results with portfolio summary
+                        # Select only the columns we want to add
+                        analysis_cols = analysis_results[['Ticker', 'Outlook', 'Confidence']].copy()
+                        analysis_cols = analysis_cols.rename(columns={'Ticker': 'Symbol'})
+                        
+                        # Merge with portfolio summary
+                        summary_df = summary_df.merge(analysis_cols, on='Symbol', how='left')
+                        
+                        # Fill any missing values
+                        summary_df['Outlook'] = summary_df['Outlook'].fillna('Unknown')
+                        summary_df['Confidence'] = summary_df['Confidence'].fillna(50)
+                    else:
+                        # If no analysis results, add default values
+                        summary_df['Outlook'] = 'Unknown'
+                        summary_df['Confidence'] = 50
+                        
+            except Exception as e:
+                st.warning(f"Could not fetch technical analysis data: {str(e)}")
+                # Add default values if analysis fails
+                summary_df['Outlook'] = 'Unknown' 
+                summary_df['Confidence'] = 50
+            
             # Format numeric columns
             if 'Current Price' in summary_df.columns:
                 summary_df['Current Price'] = summary_df['Current Price'].round(2)
