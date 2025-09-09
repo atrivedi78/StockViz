@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import yfinance as yf
 from typing import Optional, Tuple
 
 def calculate_ema(prices: pd.Series, period: int) -> pd.Series:
@@ -122,6 +123,31 @@ def analyze_macd(macd, signal, hist, price, label):
         outlook = "Neutral"
 
     return {"Outlook": outlook, "Score": score, "Notes": notes, "Label": label}
+
+def compute_macd(prices, fast=12, slow=26, signal=9):
+    """Compute MACD and return separate series (used by analyze_tickers)"""
+    try:
+        if len(prices) < slow:
+            return pd.Series(), pd.Series(), pd.Series()
+        
+        # Calculate EMAs
+        ema_fast = prices.ewm(span=fast).mean()
+        ema_slow = prices.ewm(span=slow).mean()
+        
+        # MACD line
+        macd_line = ema_fast - ema_slow
+        
+        # Signal line
+        signal_line = macd_line.ewm(span=signal).mean()
+        
+        # Histogram
+        histogram = macd_line - signal_line
+        
+        return macd_line.dropna(), signal_line.dropna(), histogram.dropna()
+    
+    except Exception as e:
+        print(f"Error in compute_macd: {e}")
+        return pd.Series(), pd.Series(), pd.Series()
 
 def interpret_macd(price_df):
     """Interpret weekly and monthly MACD with ranking and confidence scoring."""
