@@ -62,193 +62,117 @@ def calculate_macd(prices: pd.Series, fast_period: int = 12, slow_period: int = 
         print(f"Error calculating MACD: {str(e)}")
         return None
 
-def calculate_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
-    """
-    Calculate Relative Strength Index (RSI)
-    
-    Args:
-        prices (pd.Series): Price series
-        period (int): RSI period (default: 14)
-        
-    Returns:
-        pd.Series: RSI values
-    """
-    try:
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        
-        return rsi
-        
-    except Exception as e:
-        print(f"Error calculating RSI: {str(e)}")
-        return pd.Series(index=prices.index, dtype=float)
+def analyze_macd(macd, signal, hist, price, label):
+    notes = []
+    score = 0
 
-def calculate_bollinger_bands(prices: pd.Series, period: int = 20, std_dev: float = 2) -> pd.DataFrame:
-    """
-    Calculate Bollinger Bands
-    
-    Args:
-        prices (pd.Series): Price series
-        period (int): Moving average period (default: 20)
-        std_dev (float): Standard deviation multiplier (default: 2)
-        
-    Returns:
-        pd.DataFrame: DataFrame with Middle Band (SMA), Upper Band, and Lower Band
-    """
-    try:
-        sma = prices.rolling(window=period).mean()
-        rolling_std = prices.rolling(window=period).std()
-        
-        upper_band = sma + (rolling_std * std_dev)
-        lower_band = sma - (rolling_std * std_dev)
-        
-        bb_df = pd.DataFrame({
-            'Middle Band': sma,
-            'Upper Band': upper_band,
-            'Lower Band': lower_band
-        }, index=prices.index)
-        
-        return bb_df
-        
-    except Exception as e:
-        print(f"Error calculating Bollinger Bands: {str(e)}")
-        return pd.DataFrame(index=prices.index)
+    macd_last, macd_prev = macd.iloc[-1], macd.iloc[-2]
+    signal_last, signal_prev = signal.iloc[-1], signal.iloc[-2]
+    hist_last, hist_prev = hist.iloc[-1], hist.iloc[-2]
 
-def calculate_moving_averages(prices: pd.Series, periods: list = [20, 50, 200]) -> pd.DataFrame:
-    """
-    Calculate multiple Simple Moving Averages
-    
-    Args:
-        prices (pd.Series): Price series
-        periods (list): List of periods for moving averages
-        
-    Returns:
-        pd.DataFrame: DataFrame with moving averages
-    """
-    try:
-        ma_df = pd.DataFrame(index=prices.index)
-        
-        for period in periods:
-            ma_df[f'SMA_{period}'] = prices.rolling(window=period).mean()
-            
-        return ma_df
-        
-    except Exception as e:
-        print(f"Error calculating moving averages: {str(e)}")
-        return pd.DataFrame(index=prices.index)
+    # Basic position
+    if macd_last > signal_last and macd_last > 0:
+        notes.append("MACD above Signal and zero (bullish)")
+        score += 2
+    elif macd_last < signal_last and macd_last < 0:
+        notes.append("MACD below Signal and zero (bearish)")
+        score -= 2
+    else:
+        notes.append("MACD in mixed territory")
 
-def detect_macd_signals(macd_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Detect MACD trading signals
-    
-    Args:
-        macd_df (pd.DataFrame): MACD DataFrame with MACD, Signal, and Histogram columns
-        
-    Returns:
-        pd.DataFrame: DataFrame with additional signal columns
-    """
-    try:
-        signals_df = macd_df.copy()
-        
-        # MACD line crossovers with signal line
-        signals_df['MACD_Above_Signal'] = signals_df['MACD'] > signals_df['Signal']
-        signals_df['Signal_Change'] = signals_df['MACD_Above_Signal'].astype(int).diff()
-        
-        # Buy signals (MACD crosses above signal line)
-        signals_df['Buy_Signal'] = signals_df['Signal_Change'] == 1
-        
-        # Sell signals (MACD crosses below signal line)
-        signals_df['Sell_Signal'] = signals_df['Signal_Change'] == -1
-        
-        # Zero line crossovers
-        signals_df['MACD_Above_Zero'] = signals_df['MACD'] > 0
-        signals_df['Zero_Line_Change'] = signals_df['MACD_Above_Zero'].astype(int).diff()
-        
-        # Bullish momentum (MACD crosses above zero)
-        signals_df['Bullish_Momentum'] = signals_df['Zero_Line_Change'] == 1
-        
-        # Bearish momentum (MACD crosses below zero)
-        signals_df['Bearish_Momentum'] = signals_df['Zero_Line_Change'] == -1
-        
-        # Histogram analysis
-        signals_df['Histogram_Positive'] = signals_df['Histogram'] > 0
-        signals_df['Histogram_Increasing'] = signals_df['Histogram'].diff() > 0
-        
-        return signals_df
-        
-    except Exception as e:
-        print(f"Error detecting MACD signals: {str(e)}")
-        return macd_df
+    # Fresh crossovers
+    if macd_prev < signal_prev and macd_last > signal_last:
+        notes.append("Fresh bullish crossover")
+        score += 2
+    elif macd_prev > signal_prev and macd_last < signal_last:
+        notes.append("Fresh bearish crossover")
+        score -= 2
 
-def get_macd_interpretation(latest_macd: pd.Series) -> dict:
-    """
-    Provide interpretation of current MACD values
-    
-    Args:
-        latest_macd (pd.Series): Latest MACD values
-        
-    Returns:
-        dict: Interpretation of MACD signals
-    """
-    try:
-        interpretation = {
-            'trend': 'Neutral',
-            'signal_strength': 'Weak',
-            'recommendation': 'Hold',
-            'details': []
-        }
-        
-        macd_value = latest_macd.get('MACD', 0)
-        signal_value = latest_macd.get('Signal', 0)
-        histogram_value = latest_macd.get('Histogram', 0)
-        
-        # Trend analysis
-        if macd_value > signal_value:
-            if macd_value > 0:
-                interpretation['trend'] = 'Strong Bullish'
-                interpretation['recommendation'] = 'Buy'
-            else:
-                interpretation['trend'] = 'Weak Bullish'
-                interpretation['recommendation'] = 'Hold/Buy'
-        else:
-            if macd_value < 0:
-                interpretation['trend'] = 'Strong Bearish'
-                interpretation['recommendation'] = 'Sell'
-            else:
-                interpretation['trend'] = 'Weak Bearish'
-                interpretation['recommendation'] = 'Hold/Sell'
-        
-        # Signal strength
-        macd_signal_diff = abs(macd_value - signal_value)
-        if macd_signal_diff > 0.5:
-            interpretation['signal_strength'] = 'Strong'
-        elif macd_signal_diff > 0.2:
-            interpretation['signal_strength'] = 'Medium'
-        else:
-            interpretation['signal_strength'] = 'Weak'
-        
-        # Add details
-        if histogram_value > 0:
-            interpretation['details'].append("MACD histogram is positive, indicating strengthening bullish momentum")
-        else:
-            interpretation['details'].append("MACD histogram is negative, indicating strengthening bearish momentum")
-        
-        if macd_value > 0:
-            interpretation['details'].append("MACD is above zero line, suggesting overall bullish trend")
-        else:
-            interpretation['details'].append("MACD is below zero line, suggesting overall bearish trend")
-        
-        return interpretation
-        
-    except Exception as e:
-        print(f"Error interpreting MACD: {str(e)}")
-        return {
-            'trend': 'Unknown',
-            'signal_strength': 'Unknown',
-            'recommendation': 'Hold',
-            'details': ['Error in analysis']
-        }
+    # Histogram momentum
+    if hist_last > hist_prev:
+        notes.append("Momentum strengthening")
+        score += 1
+    elif hist_last < hist_prev:
+        notes.append("Momentum weakening")
+        score -= 1
+
+    # Divergence check (simplified)
+    price_high = price.iloc[-20:].max()
+    price_low = price.iloc[-20:].min()
+    macd_high = macd.iloc[-20:].max()
+    macd_low = macd.iloc[-20:].min()
+
+    if price.iloc[-1] > price_high and macd_last < macd_high:
+        notes.append("Bearish divergence (price high not confirmed by MACD)")
+        score -= 2
+    if price.iloc[-1] < price_low and macd_last > macd_low:
+        notes.append("Bullish divergence (price low not confirmed by MACD)")
+        score += 2
+
+    # Translate score into ranked outlook
+    if score >= 3:
+        outlook = "Strong Bullish"
+    elif score >= 1:
+        outlook = "Weak Bullish"
+    elif score <= -3:
+        outlook = "Strong Bearish"
+    elif score <= -1:
+        outlook = "Weak Bearish"
+    else:
+        outlook = "Neutral"
+
+    return {"Outlook": outlook, "Score": score, "Notes": notes, "Label": label}
+
+def interpret_macd(price_df):
+    """Interpret weekly and monthly MACD with ranking and confidence scoring."""
+    weekly = price_df['Close'].resample('W').last()
+    monthly = price_df['Close'].resample('M').last()
+
+    macd_w, sig_w, hist_w = compute_macd(weekly)
+    macd_m, sig_m, hist_m = compute_macd(monthly)
+
+    weekly_view = analyze_macd(macd_w, sig_w, hist_w, weekly, "Weekly")
+    monthly_view = analyze_macd(macd_m, sig_m, hist_m, monthly, "Monthly")
+
+    overall_score = (weekly_view["Score"] + monthly_view["Score"]) / 2
+
+    if overall_score >= 3:
+        overall = "Strong Bullish"
+    elif overall_score >= 1:
+        overall = "Weak Bullish"
+    elif overall_score <= -3:
+        overall = "Strong Bearish"
+    elif overall_score <= -1:
+        overall = "Weak Bearish"
+    else:
+        overall = "Neutral"
+
+    max_score = 6
+    confidence = int(round(((overall_score + max_score) / (2 * max_score)) * 100, 0))
+
+    return {
+        "Outlook": overall,
+        "Confidence": confidence,
+        "Weekly": weekly_view["Outlook"],
+        "Monthly": monthly_view["Outlook"],
+        "Weekly Notes": "; ".join(weekly_view["Notes"]),
+        "Monthly Notes": "; ".join(monthly_view["Notes"])
+    }
+
+# --- Multi-ticker wrapper ---
+def analyze_tickers(tickers, start="2020-01-01"):
+    results = []
+    for ticker in tickers:
+        try:
+            df = yf.download(ticker, start=start, progress=False)
+            if df.empty:
+                continue
+            res = interpret_macd(df)
+            res["Ticker"] = ticker
+            results.append(res)
+        except Exception as e:
+            print(f"Error processing {ticker}: {e}")
+            continue
+
+    ranked = pd.DataFrame(results).sort_values(by="Confidence", ascending=False)
+    return ranked.reset_index(drop=True)
