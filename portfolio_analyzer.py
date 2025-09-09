@@ -94,7 +94,7 @@ class PortfolioAnalyzer:
             try:
                 ticker = yf.Ticker(symbol)
                 info = ticker.info
-                hist = ticker.history(period="1d")
+                hist = ticker.history(interval="1d")
                 
                 if not hist.empty:
                     current_price = hist['Close'].iloc[-1]
